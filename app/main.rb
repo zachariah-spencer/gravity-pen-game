@@ -19,6 +19,25 @@ def defaults args
     dx: 0.0,
     dy: 0.0,
   }
+
+  args.state.rune_pixels ||= [
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil, 1 , 1 ,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil, 1 , 1 ,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil, 1 ,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
+  ]
   
   args.state.canvas_box_rect ||= {
     x: Grid.w / 2 - 256,
@@ -40,6 +59,24 @@ def defaults args
     g: 13,
     b: 13,
   }
+
+  args.state.rune_pixels.each_with_index do |pixel_row, row_index|
+    pixel_row.each_with_index do |pixel, column_index|
+      if pixel
+        args.outputs[:canvas_box].primitives << {
+          x: (256) + column_index * 32,
+          y: (256 + 512 - 32) - row_index * 32,
+          w: 32,
+          h: 32,
+          r: 0,
+          g: 255,
+          b: 255,
+          a: 50,
+          primitive_marker: :solid
+        }
+      end
+    end
+  end
 
   args.state.gravity_arrow ||= {
     x: Grid.w * 0.5 - 32,
