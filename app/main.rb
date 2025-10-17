@@ -5,6 +5,8 @@ def tick args
 end
 
 def defaults args
+  args.state.timer ||= 30.0
+
   args.state.pen ||= {
     path: "sprites/chroma-noir-8x8/items.png",
     x: 500,
@@ -156,6 +158,8 @@ def defaults args
 end
 
 def calc args
+  args.state.timer = 30 - 0.elapsed_time / 60
+
   # local vars
   pen = args.state.pen
   box = args.state.canvas_box_rect
@@ -273,4 +277,59 @@ def render args
     x: args.state.pen[:x] + args.state.pen[:x_offset],
     y: args.state.pen[:y] + args.state.pen[:y_offset],
   })
+
+  args.outputs.labels << {
+    x: Grid.w / 2,
+    y: 80,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Click and drag your MOUSE on the screen to change the flow of gravity.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    x: Grid.w / 2,
+    y: 60,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Use the A/D keys to rotate the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    x: Grid.w / 2,
+    y: 40,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Press the SPACE BAR to draw with your pen on the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    x: Grid.w / 2,
+    y: 20,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Try to draw the magical rune by filling in the neon blue parts of the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    x: Grid.w / 2,
+    y: Grid.h - 40,
+    alignment_enum: 1,
+    size_px: 30,
+    text: "Time Left: #{args.state.timer.round(1)}",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
 end
