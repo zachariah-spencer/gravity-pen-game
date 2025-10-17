@@ -9,6 +9,8 @@ def defaults args
     path: "sprites/chroma-noir-8x8/items.png",
     x: 500,
     y: 500,
+    x_offset: 32,
+    y_offset: 32,
     w: 32,
     h: 32,
     tile_x: 8 * 2,
@@ -18,13 +20,18 @@ def defaults args
     angle: 180.0,
     dx: 0.0,
     dy: 0.0,
+    drawing: false,
   }
+
+  args.state.highlighted_pixels ||= []
 
   nil_or_one = [nil, nil, 1]
 
   args.state.rune_pixels ||= []
+  args.state.canvas_pixels ||= []
   if Kernel.tick_count == 0
     16.times { args.state.rune_pixels << [] }
+    16.times { args.state.canvas_pixels << [] }
     args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
   end
   
@@ -51,13 +58,80 @@ def defaults args
 
   args.state.rune_pixels.each_with_index do |pixel_row, row_index|
     pixel_row.each_with_index do |pixel, column_index|
-      if pixel
+      # handle calc logic
+      if !args.state.canvas_pixels[row_index][column_index]
+        args.state.canvas_pixels[row_index] << {
+            x: (256) + column_index * 32,
+            y: (256 + 512 - 32) - row_index * 32,
+            w: 32,
+            h: 32,
+            needed: false,
+            drawn: false,
+        }
+      end
+
+      current_pixel_index = args.state.canvas_pixels[row_index][column_index]
+      current_pixel_index[:needed] = pixel
+    
+
+      # handle render
+      if current_pixel_index[:drawn] && current_pixel_index[:needed]
         args.outputs[:canvas_box].primitives << {
           x: (256) + column_index * 32,
           y: (256 + 512 - 32) - row_index * 32,
           w: 32,
           h: 32,
           r: 0,
+          g: 255,
+          b: 255,
+          a: 255,
+          primitive_marker: :solid
+        }
+      elsif current_pixel_index[:drawn]
+        args.outputs[:canvas_box].primitives << {
+          x: (256) + column_index * 32,
+          y: (256 + 512 - 32) - row_index * 32,
+          w: 32,
+          h: 32,
+          r: 0,
+          g: 5,
+          b: 20,
+          a: 255,
+          primitive_marker: :solid
+        }
+      elsif current_pixel_index[:needed]
+        args.outputs[:canvas_box].primitives << {
+          x: (256) + column_index * 32,
+          y: (256 + 512 - 32) - row_index * 32,
+          w: 32,
+          h: 32,
+          r: 0,
+          g: 255,
+          b: 255,
+          a: 50,
+          primitive_marker: :solid
+        }
+      else
+        args.outputs[:canvas_box].primitives << {
+          x: (256) + column_index * 32,
+          y: (256 + 512 - 32) - row_index * 32,
+          w: 32,
+          h: 32,
+          r: 13,
+          g: 13,
+          b: 13,
+          a: 255,
+          primitive_marker: :solid
+        }
+      end
+
+      if args.state.highlighted_pixels.include?([row_index, column_index])
+        args.outputs[:canvas_box].primitives << {
+          x: (256) + column_index * 32,
+          y: (256 + 512 - 32) - row_index * 32,
+          w: 32,
+          h: 32,
+          r: 255,
           g: 255,
           b: 255,
           a: 50,
@@ -99,13 +173,17 @@ def calc args
   arrow_cos_a = Math.cos(arrow_angle_rad)
   arrow_sin_a = Math.sin(arrow_angle_rad)
 
-  gravity_strength = 0.5
-  max_velocity = 10
+  gravity_strength = 0.25
+  max_velocity = 5.0
 
   # inputs
   args.state.canvas_box_rect[:angle] += 2.0 if args.inputs.keyboard.a
   args.state.canvas_box_rect[:angle] -= 2.0 if args.inputs.keyboard.d
   args.state.gravity_arrow[:angle] = args.geometry.angle_to([box_cx, box_cy], args.inputs.mouse) + 90 if args.inputs.mouse.button_left
+  pen[:drawing] = args.inputs.keyboard.space
+  args.state.pen[:r] = args.state.pen[:drawing] ? 0 : 255
+  args.state.pen[:g] = args.state.pen[:drawing] ? 0 : 255
+
 
   # gravity application
   pen[:dx] += (gravity_strength * arrow_sin_a).clamp(-max_velocity, max_velocity)
@@ -150,6 +228,23 @@ def calc args
 
   pen[:dx] = local_dx * cos_a - local_dy * sin_a
   pen[:dy] = local_dx * sin_a + local_dy * cos_a
+
+  
+  cell_size = 32
+  half_w    = box[:w] * 0.5
+  half_h    = box[:h] * 0.5
+
+  row_count = args.state.canvas_pixels.length
+  col_count = args.state.canvas_pixels.first.length
+
+  center_col = ((local_x + half_w) / cell_size).floor.clamp(0, col_count - 1)
+  center_row = ((half_h - local_y) / cell_size).floor.clamp(0, row_count - 1)
+
+  args.state.highlighted_pixels.clear
+  args.state.highlighted_pixels << [center_row, center_col]
+
+  return unless pen[:drawing]
+  args.state.canvas_pixels[center_row][center_col][:drawn] = true
 end
 
 def render args
@@ -174,6 +269,8 @@ def render args
   }
 
   args.outputs.sprites << args.state.gravity_arrow
-
-  args.outputs.sprites << args.state.pen
+  args.outputs.sprites << args.state.pen.merge({
+    x: args.state.pen[:x] + args.state.pen[:x_offset],
+    y: args.state.pen[:y] + args.state.pen[:y_offset],
+  })
 end
