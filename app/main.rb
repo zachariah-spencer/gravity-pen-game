@@ -20,24 +20,13 @@ def defaults args
     dy: 0.0,
   }
 
-  args.state.rune_pixels ||= [
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil, 1 , 1 ,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil, 1 , 1 ,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil, 1 ,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-    [nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,],
-  ]
+  nil_or_one = [nil, nil, 1]
+
+  args.state.rune_pixels ||= []
+  if Kernel.tick_count == 0
+    16.times { args.state.rune_pixels << [] }
+    args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
+  end
   
   args.state.canvas_box_rect ||= {
     x: Grid.w / 2 - 256,
