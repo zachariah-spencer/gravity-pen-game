@@ -5,7 +5,10 @@ def tick args
 end
 
 def defaults args
-  args.state.timer ||= 30.0
+  args.state.playing_tick ||= nil
+  args.state.game_duration ||= 30.0
+  args.state.timer ||= args.state.game_duration
+  
 
   args.state.pen ||= {
     path: "sprites/chroma-noir-8x8/items.png",
@@ -27,15 +30,8 @@ def defaults args
 
   args.state.highlighted_pixels ||= []
 
-  nil_or_one = [nil, nil, 1]
-
   args.state.rune_pixels ||= []
   args.state.canvas_pixels ||= []
-  if Kernel.tick_count == 0
-    16.times { args.state.rune_pixels << [] }
-    16.times { args.state.canvas_pixels << [] }
-    args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
-  end
   
   args.state.canvas_box_rect ||= {
     x: Grid.w / 2 - 256,
@@ -159,8 +155,29 @@ def defaults args
   args.state.gravity_target_angle ||= args.state.gravity_arrow[:angle]
 end
 
+def reset_game args
+  nil_or_one = [nil, nil, 1]
+  args.state.rune_pixels.clear
+  args.state.canvas_pixels.clear
+  16.times { args.state.rune_pixels << [] }
+  16.times { args.state.canvas_pixels << [] }
+  args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
+  args.state.playing_tick = Kernel.tick_count
+end
+
 def calc args
-  args.state.timer = 30 - 0.elapsed_time / 60
+
+  if args.state.playing_tick
+    args.state.timer = args.state.game_duration - args.state.playing_tick.elapsed_time / 60
+  end
+
+  if args.state.timer <= 0.0 && args.state.playing_tick
+    args.state.timer = 0.0
+    args.state.playing_tick = nil
+  end
+
+  reset_game args if args.inputs.mouse.click && !args.state.playing_tick
+  return unless args.state.playing_tick
 
   # local vars
   pen = args.state.pen
@@ -348,4 +365,17 @@ def render args
     g: 217,
     b: 217,
   }
+
+  unless args.state.playing_tick
+    args.outputs.labels << {
+      x: Grid.w / 2,
+      y: Grid.h / 2 + 25,
+      alignment_enum: 1,
+      size_px: 128,
+      text: "CLICK TO PLAY",
+      r: 217,
+      g: 217,
+      b: 217,
+    }
+  end
 end
