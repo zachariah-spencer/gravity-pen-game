@@ -155,6 +155,8 @@ def defaults args
     tile_w: 8,
     tile_h: 8
   }
+
+  args.state.gravity_target_angle ||= args.state.gravity_arrow[:angle]
 end
 
 def calc args
@@ -177,16 +179,25 @@ def calc args
   arrow_cos_a = Math.cos(arrow_angle_rad)
   arrow_sin_a = Math.sin(arrow_angle_rad)
 
-  gravity_strength = 0.25
+  gravity_strength = 0.5
   max_velocity = 5.0
 
   # inputs
   args.state.canvas_box_rect[:angle] += 2.0 if args.inputs.keyboard.a
   args.state.canvas_box_rect[:angle] -= 2.0 if args.inputs.keyboard.d
-  args.state.gravity_arrow[:angle] = args.geometry.angle_to([box_cx, box_cy], args.inputs.mouse) + 90 if args.inputs.mouse.button_left
+  args.state.gravity_target_angle = args.geometry.angle_to([box_cx, box_cy], args.inputs.mouse) + 90 if args.inputs.mouse.button_left
+  arrow[:angle] = lerp_angle(arrow[:angle], args.state.gravity_target_angle, 0.15)
   pen[:drawing] = args.inputs.keyboard.space
   args.state.pen[:r] = args.state.pen[:drawing] ? 0 : 255
   args.state.pen[:g] = args.state.pen[:drawing] ? 0 : 255
+
+  # damping
+  damping = 0.94
+  pen[:dx] *= damping
+  pen[:dy] *= damping
+
+  pen[:dx] += gravity_strength * arrow_sin_a
+  pen[:dy] -= gravity_strength * arrow_cos_a
 
 
   # gravity application
@@ -249,6 +260,11 @@ def calc args
 
   return unless pen[:drawing]
   args.state.canvas_pixels[center_row][center_col][:drawn] = true
+end
+
+def lerp_angle(current, target, ratio)
+  delta = ((target - current + 540) % 360) - 180
+  current + delta * ratio
 end
 
 def render args
