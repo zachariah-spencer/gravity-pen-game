@@ -7,6 +7,11 @@ def tick args
 end
 
 def defaults args
+
+  if Kernel.tick_count == 0
+    args.audio[:bg_music] = { input: "sounds/bg_music.ogg", looping: true, gain: 0.2}
+  end
+
   args.state.playing_tick ||= nil
   # states are :ready, :playing, :score
   args.state.game_status ||= :ready
@@ -18,6 +23,7 @@ def defaults args
   args.state.total_possible_correct_squares ||= 0
   args.state.mistake_percentage ||= 0
   args.state.calculated_percentage ||= 0
+  args.state.box_rotation_velocity ||= 0.0
   
 
   args.state.pen ||= {
@@ -166,8 +172,10 @@ def defaults args
 end
 
 def reset_game args
+  args.audio[:bell] = { input: "sounds/bell.wav", gain: 0.2}
+  args.state.box_rotation_velocity = Numeric.rand(-1.2..1.2)
   args.state.game_status = :playing
-  nil_or_one = [nil, nil, nil, 1]
+  nil_or_one = [nil, nil, 1]
   args.state.rune_pixels.clear
   args.state.canvas_pixels.clear
   16.times { args.state.rune_pixels << [] }
@@ -184,6 +192,8 @@ def calc args
   end
 
   if args.state.timer <= 0.0 && args.state.playing_tick
+    args.audio.delete(:drawing) if args.audio[:drawing]
+    args.audio[:bell] = { input: "sounds/bell.wav", gain: 0.2, pitch: 0.7}
     args.state.game_status = :score
     args.state.timer = args.state.game_duration
     args.state.playing_tick = nil
@@ -210,6 +220,7 @@ def calc args
     if args.state.game_status == :ready
       reset_game args
     elsif args.state.game_status == :score
+      args.audio[:click] = { input: "sounds/select.wav", gain: 0.3}
       args.state.game_status = :ready
     end
   end
@@ -233,11 +244,14 @@ def calc args
   arrow_sin_a = Math.sin(arrow_angle_rad)
 
   gravity_strength = 0.5
-  max_velocity = 5.0
+  max_velocity = 2.5
+
+  # box rotation
+  box[:angle] += args.state.box_rotation_velocity
 
   # inputs
-  args.state.canvas_box_rect[:angle] += 2.0 if args.inputs.keyboard.a
-  args.state.canvas_box_rect[:angle] -= 2.0 if args.inputs.keyboard.d
+  # args.state.canvas_box_rect[:angle] += 2.0 if args.inputs.keyboard.a
+  # args.state.canvas_box_rect[:angle] -= 2.0 if args.inputs.keyboard.d
   args.state.gravity_target_angle = args.geometry.angle_to([box_cx, box_cy], args.inputs.mouse) + 90 if args.inputs.mouse.button_left
   arrow[:angle] = lerp_angle(arrow[:angle], args.state.gravity_target_angle, 0.15)
   pen[:drawing] = args.inputs.keyboard.space
@@ -311,7 +325,18 @@ def calc args
   args.state.highlighted_pixels.clear
   args.state.highlighted_pixels << [center_row, center_col]
 
+  if args.inputs.keyboard.key_down.space
+    args.audio[:draw] = { input: "sounds/scribble.wav", gain: 0.2 } 
+    args.audio[:drawing] = { input: "sounds/drawing.ogg", gain: 0.8, looping: true }
+  end
+  if args.inputs.keyboard.key_up.space
+    args.audio[:lift_pen] = { input: "sounds/scribble.wav", gain: 0.2, pitch: 0.9 } 
+    args.audio.delete(:drawing)
+  end
+  
+
   return unless pen[:drawing]
+  
   args.state.canvas_pixels[center_row][center_col][:drawn] = true
 end
 
@@ -321,6 +346,7 @@ def lerp_angle(current, target, ratio)
 end
 
 def render args
+
   args.outputs.solids << {
     x: 0,
     y: 0,
@@ -348,13 +374,14 @@ def render args
     y: args.state.pen[:y] + args.state.pen[:y_offset],
   })
 
-  args.outputs.labels << {
+  args.outputs.primitives << {
+    primitive_marker: :label,
     font: FONT_PATH,
     x: Grid.w / 2,
     y: Grid.h - 40,
     alignment_enum: 1,
     size_px: 30,
-    text: "Time Left: #{args.state.timer.round(1)}",
+    text: "Time Left: #{'%.1f' % args.state.timer.round(1)}",
     r: 217,
     g: 217,
     b: 217,
@@ -368,9 +395,8 @@ def render args
     args.outputs.labels.map { |label| label[:a] = 50 }
 
     if args.state.game_status == :ready
-
       render_instructions args
-      args.outputs.labels << {
+      args.outputs.primitives << {
         font: FONT_PATH,
         x: Grid.w / 2,
         y: Grid.h / 2 + 25,
@@ -412,7 +438,7 @@ def render args
         y: Grid.h - 100 - (80 * 2),
         alignment_enum: 1,
         size_px: 64,
-        text: "%#{args.state.accuracy_percentage} - %#{args.state.mistake_percentage} = %#{args.state.calculated_percentage}",
+        text: "%#{'%.1f' % args.state.accuracy_percentage} - %#{'%.1f' % args.state.mistake_percentage} = %#{'%.1f' % args.state.calculated_percentage}",
         r: 217,
         g: 217,
         b: 217,
@@ -436,7 +462,7 @@ def render args
         y: Grid.h - 100 - (80 * 4),
         alignment_enum: 1,
         size_px: 64,
-        text: "#{args.state.correct_squares} / #{args.state.total_possible_correct_squares} = %#{args.state.accuracy_percentage}",
+        text: "#{'%.1f' % args.state.correct_squares} / #{'%.1f' % args.state.total_possible_correct_squares} = %#{'%.1f' % args.state.accuracy_percentage}",
         r: 217,
         g: 217,
         b: 217,
@@ -460,58 +486,61 @@ def render args
         y: Grid.h - 100 - (80 * 6),
         alignment_enum: 1,
         size_px: 64,
-        text: "#{args.state.mistaken_squares} / 256 = %#{args.state.mistake_percentage}",
+        text: "#{'%.1f' % args.state.mistaken_squares} / 256 = %#{'%.1f' % args.state.mistake_percentage}",
         r: 217,
         g: 217,
         b: 217,
       }
     end
   end
+
+  args.outputs.primitives << {
+    x: 0,
+    y: 0,
+    w: 1280,
+    h: 720,
+    a: 255 - Kernel.tick_count * 5,
+    r: 0,
+    g: 0,
+    b: 0,
+    primitive_marker: :solid
+  }
 end
 
 def render_instructions args
-  args.outputs.labels << {
+  args.outputs.primitives << {
+    primitive_marker: :label,
     font: FONT_PATH,
     x: Grid.w / 2,
-    y: 80,
+    y: 120,
     alignment_enum: 1,
-    size_px: 20,
+    size_px: 24,
     text: "Click and drag your MOUSE on the screen to change the flow of gravity.",
     r: 217,
     g: 217,
     b: 217,
   }
 
-  args.outputs.labels << {
+  args.outputs.primitives << {
+    primitive_marker: :label,
     font: FONT_PATH,
     x: Grid.w / 2,
-    y: 60,
+    y: 80,
     alignment_enum: 1,
-    size_px: 20,
-    text: "Use the A/D keys to rotate the canvas.",
-    r: 217,
-    g: 217,
-    b: 217,
-  }
-
-  args.outputs.labels << {
-    font: FONT_PATH,
-    x: Grid.w / 2,
-    y: 40,
-    alignment_enum: 1,
-    size_px: 20,
+    size_px: 24,
     text: "Press the SPACE BAR to draw with your pen on the canvas.",
     r: 217,
     g: 217,
     b: 217,
   }
 
-  args.outputs.labels << {
+  args.outputs.primitives << {
+    primitive_marker: :label,
     font: FONT_PATH,
     x: Grid.w / 2,
-    y: 20,
+    y: 40,
     alignment_enum: 1,
-    size_px: 20,
+    size_px: 24,
     text: "Try to draw the magical rune by filling in the neon blue parts of the canvas.",
     r: 217,
     g: 217,
