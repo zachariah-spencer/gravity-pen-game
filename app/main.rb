@@ -15,7 +15,7 @@ def defaults args
   args.state.playing_tick ||= nil
   # states are :ready, :playing, :score
   args.state.game_status ||= :ready
-  args.state.game_duration ||= 60.0
+  args.state.game_duration ||= 30.0
   args.state.timer ||= args.state.game_duration
   args.state.correct_squares ||= 0
   args.state.mistaken_squares ||= 0
@@ -75,10 +75,10 @@ def defaults args
       # handle calc logic
       if !args.state.canvas_pixels[row_index][column_index]
         args.state.canvas_pixels[row_index] << {
-            x: (256) + column_index * 32,
-            y: (256 + 512 - 32) - row_index * 32,
-            w: 32,
-            h: 32,
+            x: (256) + column_index * 64,
+            y: (256 + 512 - 64) - row_index * 64,
+            w: 64,
+            h: 64,
             needed: false,
             drawn: false,
         }
@@ -91,10 +91,10 @@ def defaults args
       # handle render
       if current_pixel_index[:drawn] && current_pixel_index[:needed]
         args.outputs[:canvas_box].primitives << {
-          x: (256) + column_index * 32,
-          y: (256 + 512 - 32) - row_index * 32,
-          w: 32,
-          h: 32,
+          x: (256) + column_index * 64,
+          y: (256 + 512 - 64) - row_index * 64,
+          w: 64,
+          h: 64,
           r: 0,
           g: 255,
           b: 255,
@@ -103,10 +103,10 @@ def defaults args
         }
       elsif current_pixel_index[:drawn]
         args.outputs[:canvas_box].primitives << {
-          x: (256) + column_index * 32,
-          y: (256 + 512 - 32) - row_index * 32,
-          w: 32,
-          h: 32,
+          x: (256) + column_index * 64,
+          y: (256 + 512 - 64) - row_index * 64,
+          w: 64,
+          h: 64,
           r: 0,
           g: 5,
           b: 20,
@@ -115,10 +115,10 @@ def defaults args
         }
       elsif current_pixel_index[:needed]
         args.outputs[:canvas_box].primitives << {
-          x: (256) + column_index * 32,
-          y: (256 + 512 - 32) - row_index * 32,
-          w: 32,
-          h: 32,
+          x: (256) + column_index * 64,
+          y: (256 + 512 - 64) - row_index * 64,
+          w: 64,
+          h: 64,
           r: 0,
           g: 255,
           b: 255,
@@ -127,10 +127,10 @@ def defaults args
         }
       else
         args.outputs[:canvas_box].primitives << {
-          x: (256) + column_index * 32,
-          y: (256 + 512 - 32) - row_index * 32,
-          w: 32,
-          h: 32,
+          x: (256) + column_index * 64,
+          y: (256 + 512 - 64) - row_index * 64,
+          w: 64,
+          h: 64,
           r: 13,
           g: 13,
           b: 13,
@@ -141,10 +141,10 @@ def defaults args
 
       if args.state.highlighted_pixels.include?([row_index, column_index])
         args.outputs[:canvas_box].primitives << {
-          x: (256) + column_index * 32,
-          y: (256 + 512 - 32) - row_index * 32,
-          w: 32,
-          h: 32,
+          x: (256) + column_index * 64,
+          y: (256 + 512 - 64) - row_index * 64,
+          w: 64,
+          h: 64,
           r: 255,
           g: 255,
           b: 255,
@@ -178,10 +178,10 @@ def reset_game args
   nil_or_one = [nil, nil, 1, nil, nil, nil]
   args.state.rune_pixels.clear
   args.state.canvas_pixels.clear
-  16.times { args.state.rune_pixels << [] }
-  16.times { args.state.canvas_pixels << [] }
+  8.times { args.state.rune_pixels << [] }
+  8.times { args.state.canvas_pixels << [] }
   args.state.canvas_box_rect[:angle] = 0
-  args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
+  args.state.rune_pixels.each { |row| 8.times { row << nil_or_one.sample }}
   args.state.playing_tick = Kernel.tick_count
 end
 
@@ -239,7 +239,7 @@ def calc args
   sin_a = Math.sin(angle_rad)
 
   gravity_strength = 0.5
-  max_velocity = 2.5
+  max_velocity = 4.0
 
   # box rotation
   box[:angle] += args.state.box_rotation_velocity
@@ -255,13 +255,18 @@ def calc args
   args.state.pen[:g] = args.state.pen[:drawing] ? 0 : 255
 
   physics_rad = args.state.gravity_target_angle * Math::PI / 180.0
-  pen[:dx] += gravity_strength * Math.sin(physics_rad)
-  pen[:dy] -= gravity_strength * Math.cos(physics_rad)
+  pen[:dx] += gravity_strength * Math.sin(physics_rad).clamp(-max_velocity, max_velocity)
+  pen[:dy] -= gravity_strength * Math.cos(physics_rad).clamp(-max_velocity, max_velocity)
 
   # damping
-  damping = 0.94
+  damping = 0.98
+  # pen[:dx] *= damping
+  # pen[:dy] *= damping
   pen[:dx] *= damping
   pen[:dy] *= damping
+  pen[:dx] = pen[:dx].clamp(-max_velocity, max_velocity)
+  pen[:dy] = pen[:dy].clamp(-max_velocity, max_velocity)
+
 
   # gravity application
   # pen[:dx] += (gravity_strength * arrow_sin_a).clamp(-max_velocity, max_velocity)
@@ -308,7 +313,7 @@ def calc args
   pen[:dy] = local_dx * sin_a + local_dy * cos_a
 
   
-  cell_size = 32
+  cell_size = 64
   half_w    = box[:w] * 0.5
   half_h    = box[:h] * 0.5
 
