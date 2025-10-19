@@ -274,18 +274,18 @@ def calc args
 
   if local_x < -half_w
     local_x = -half_w
-    local_dx = 0
+    local_dx = [local_dx, 0].max
   elsif local_x > half_w
     local_x = half_w
-    local_dx = 0
+    local_dx = [local_dx, 0].min
   end
 
   if local_y < -half_h
     local_y = -half_h
-    local_dy = 0
+    local_dy = [local_dy, 0].max
   elsif local_y > half_h
     local_y = half_h
-    local_dy = 0
+    local_dy = [local_dy, 0].min
   end
 
   world_x = local_x * cos_a - local_y * sin_a + box_cx
