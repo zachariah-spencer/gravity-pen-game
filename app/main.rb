@@ -1,3 +1,5 @@
+FONT_PATH = "fonts/bondoni.ttf"
+
 def tick args
   defaults args
   calc args
@@ -6,14 +8,22 @@ end
 
 def defaults args
   args.state.playing_tick ||= nil
-  args.state.game_duration ||= 30.0
+  # states are :ready, :playing, :score
+  args.state.game_status ||= :ready
+  args.state.game_duration ||= 10.0
   args.state.timer ||= args.state.game_duration
+  args.state.correct_squares ||= 0
+  args.state.mistaken_squares ||= 0
+  args.state.accuracy_percentage ||= 0
+  args.state.total_possible_correct_squares ||= 0
+  args.state.mistake_percentage ||= 0
+  args.state.calculated_percentage ||= 0
   
 
   args.state.pen ||= {
     path: "sprites/chroma-noir-8x8/items.png",
-    x: 500,
-    y: 500,
+    x: Grid.w / 2 - 16,
+    y: Grid.h / 2 - 16,
     x_offset: 32,
     y_offset: 32,
     w: 32,
@@ -156,11 +166,13 @@ def defaults args
 end
 
 def reset_game args
-  nil_or_one = [nil, nil, 1]
+  args.state.game_status = :playing
+  nil_or_one = [nil, nil, nil, 1]
   args.state.rune_pixels.clear
   args.state.canvas_pixels.clear
   16.times { args.state.rune_pixels << [] }
   16.times { args.state.canvas_pixels << [] }
+  args.state.canvas_box_rect[:angle] = 0
   args.state.rune_pixels.each { |row| 16.times { row << nil_or_one.sample }}
   args.state.playing_tick = Kernel.tick_count
 end
@@ -172,11 +184,35 @@ def calc args
   end
 
   if args.state.timer <= 0.0 && args.state.playing_tick
-    args.state.timer = 0.0
+    args.state.game_status = :score
+    args.state.timer = args.state.game_duration
     args.state.playing_tick = nil
+
+    total_possible_correct = 0
+    correct = 0
+    incorrect = 0
+    args.state.canvas_pixels.flatten.each do |pixel|
+      total_possible_correct += 1 if pixel[:needed]
+      correct += 1 if pixel[:needed] && pixel[:drawn]
+      incorrect += 1 if !pixel[:needed] && pixel[:drawn]
+    end
+
+    args.state.correct_squares = correct
+    args.state.mistaken_squares = incorrect
+    args.state.total_possible_correct_squares = total_possible_correct
+    puts args.state.total_possible_correct_squares
+    args.state.accuracy_percentage = ((correct / total_possible_correct) * 100).round(1)
+    args.state.mistake_percentage = ((incorrect / 256) * 100).round(1)
+    args.state.calculated_percentage = args.state.accuracy_percentage - args.state.mistake_percentage
   end
 
-  reset_game args if args.inputs.mouse.click && !args.state.playing_tick
+  if args.inputs.mouse.click && !args.state.playing_tick 
+    if args.state.game_status == :ready
+      reset_game args
+    elsif args.state.game_status == :score
+      args.state.game_status = :ready
+    end
+  end
   return unless args.state.playing_tick
 
   # local vars
@@ -305,6 +341,7 @@ def render args
     path: :canvas_box
   }
 
+  args.state.gravity_arrow[:a] = 255
   args.outputs.sprites << args.state.gravity_arrow
   args.outputs.sprites << args.state.pen.merge({
     x: args.state.pen[:x] + args.state.pen[:x_offset],
@@ -312,50 +349,7 @@ def render args
   })
 
   args.outputs.labels << {
-    x: Grid.w / 2,
-    y: 80,
-    alignment_enum: 1,
-    size_px: 20,
-    text: "Click and drag your MOUSE on the screen to change the flow of gravity.",
-    r: 217,
-    g: 217,
-    b: 217,
-  }
-
-  args.outputs.labels << {
-    x: Grid.w / 2,
-    y: 60,
-    alignment_enum: 1,
-    size_px: 20,
-    text: "Use the A/D keys to rotate the canvas.",
-    r: 217,
-    g: 217,
-    b: 217,
-  }
-
-  args.outputs.labels << {
-    x: Grid.w / 2,
-    y: 40,
-    alignment_enum: 1,
-    size_px: 20,
-    text: "Press the SPACE BAR to draw with your pen on the canvas.",
-    r: 217,
-    g: 217,
-    b: 217,
-  }
-
-  args.outputs.labels << {
-    x: Grid.w / 2,
-    y: 20,
-    alignment_enum: 1,
-    size_px: 20,
-    text: "Try to draw the magical rune by filling in the neon blue parts of the canvas.",
-    r: 217,
-    g: 217,
-    b: 217,
-  }
-
-  args.outputs.labels << {
+    font: FONT_PATH,
     x: Grid.w / 2,
     y: Grid.h - 40,
     alignment_enum: 1,
@@ -367,15 +361,160 @@ def render args
   }
 
   unless args.state.playing_tick
-    args.outputs.labels << {
-      x: Grid.w / 2,
-      y: Grid.h / 2 + 25,
-      alignment_enum: 1,
-      size_px: 128,
-      text: "CLICK TO PLAY",
-      r: 217,
-      g: 217,
-      b: 217,
-    }
+    args.outputs.sprites.map do |sprite|
+      sprite[:a] = 50
+    end
+
+    args.outputs.labels.map { |label| label[:a] = 50 }
+
+    if args.state.game_status == :ready
+
+      render_instructions args
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h / 2 + 25,
+        alignment_enum: 1,
+        size_px: 128,
+        text: "CLICK TO PLAY",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+    elsif args.state.game_status == :score
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 64,
+        alignment_enum: 1,
+        size_px: 128,
+        text: "SCORE",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 1),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "Completion Percentage",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 2),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "%#{args.state.accuracy_percentage} - %#{args.state.mistake_percentage} = %#{args.state.calculated_percentage}",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 3),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "Correctly Painted Squares",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 4),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "#{args.state.correct_squares} / #{args.state.total_possible_correct_squares} = %#{args.state.accuracy_percentage}",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 5),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "Mistakenly Painted Squares",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+
+      args.outputs.labels << {
+        font: FONT_PATH,
+        x: Grid.w / 2,
+        y: Grid.h - 100 - (80 * 6),
+        alignment_enum: 1,
+        size_px: 64,
+        text: "#{args.state.mistaken_squares} / 256 = %#{args.state.mistake_percentage}",
+        r: 217,
+        g: 217,
+        b: 217,
+      }
+    end
   end
+end
+
+def render_instructions args
+  args.outputs.labels << {
+    font: FONT_PATH,
+    x: Grid.w / 2,
+    y: 80,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Click and drag your MOUSE on the screen to change the flow of gravity.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    font: FONT_PATH,
+    x: Grid.w / 2,
+    y: 60,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Use the A/D keys to rotate the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    font: FONT_PATH,
+    x: Grid.w / 2,
+    y: 40,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Press the SPACE BAR to draw with your pen on the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
+
+  args.outputs.labels << {
+    font: FONT_PATH,
+    x: Grid.w / 2,
+    y: 20,
+    alignment_enum: 1,
+    size_px: 20,
+    text: "Try to draw the magical rune by filling in the neon blue parts of the canvas.",
+    r: 217,
+    g: 217,
+    b: 217,
+  }
 end
