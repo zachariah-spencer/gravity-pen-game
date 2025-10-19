@@ -15,7 +15,7 @@ def defaults args
   args.state.playing_tick ||= nil
   # states are :ready, :playing, :score
   args.state.game_status ||= :ready
-  args.state.game_duration ||= 10.0
+  args.state.game_duration ||= 60.0
   args.state.timer ||= args.state.game_duration
   args.state.correct_squares ||= 0
   args.state.mistaken_squares ||= 0
@@ -175,7 +175,7 @@ def reset_game args
   args.audio[:bell] = { input: "sounds/bell.wav", gain: 0.2}
   args.state.box_rotation_velocity = Numeric.rand(-1.2..1.2)
   args.state.game_status = :playing
-  nil_or_one = [nil, nil, 1]
+  nil_or_one = [nil, nil, 1, nil, nil, nil]
   args.state.rune_pixels.clear
   args.state.canvas_pixels.clear
   16.times { args.state.rune_pixels << [] }
@@ -238,11 +238,6 @@ def calc args
   cos_a = Math.cos(angle_rad)
   sin_a = Math.sin(angle_rad)
 
-  arrow_angle_deg = arrow[:angle]
-  arrow_angle_rad = arrow_angle_deg * Math::PI / 180.0
-  arrow_cos_a = Math.cos(arrow_angle_rad)
-  arrow_sin_a = Math.sin(arrow_angle_rad)
-
   gravity_strength = 0.5
   max_velocity = 2.5
 
@@ -253,23 +248,24 @@ def calc args
   # args.state.canvas_box_rect[:angle] += 2.0 if args.inputs.keyboard.a
   # args.state.canvas_box_rect[:angle] -= 2.0 if args.inputs.keyboard.d
   args.state.gravity_target_angle = args.geometry.angle_to([box_cx, box_cy], args.inputs.mouse) + 90 if args.inputs.mouse.button_left
-  arrow[:angle] = lerp_angle(arrow[:angle], args.state.gravity_target_angle, 0.15)
+  display_angle = lerp_angle(arrow[:angle], args.state.gravity_target_angle, 0.15)
+  arrow[:angle] = display_angle
   pen[:drawing] = args.inputs.keyboard.space
   args.state.pen[:r] = args.state.pen[:drawing] ? 0 : 255
   args.state.pen[:g] = args.state.pen[:drawing] ? 0 : 255
+
+  physics_rad = args.state.gravity_target_angle * Math::PI / 180.0
+  pen[:dx] += gravity_strength * Math.sin(physics_rad)
+  pen[:dy] -= gravity_strength * Math.cos(physics_rad)
 
   # damping
   damping = 0.94
   pen[:dx] *= damping
   pen[:dy] *= damping
 
-  pen[:dx] += gravity_strength * arrow_sin_a
-  pen[:dy] -= gravity_strength * arrow_cos_a
-
-
   # gravity application
-  pen[:dx] += (gravity_strength * arrow_sin_a).clamp(-max_velocity, max_velocity)
-  pen[:dy] -= (gravity_strength * arrow_cos_a).clamp(-max_velocity, max_velocity)
+  # pen[:dx] += (gravity_strength * arrow_sin_a).clamp(-max_velocity, max_velocity)
+  # pen[:dy] -= (gravity_strength * arrow_cos_a).clamp(-max_velocity, max_velocity)
   
   pen[:x] += pen[:dx].clamp(-max_velocity, max_velocity)
   pen[:y] += pen[:dy].clamp(-max_velocity, max_velocity)
