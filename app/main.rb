@@ -82,10 +82,14 @@ def defaults args
             needed: false,
             drawn: false,
         }
+        args.state.canvas_pixels[row_index][column_index][:needed] = pixel
+
+        
+        args.state.total_possible_correct_squares += 1 if pixel
       end
 
       current_pixel_index = args.state.canvas_pixels[row_index][column_index]
-      current_pixel_index[:needed] = pixel
+      
     
 
       # handle render
@@ -183,6 +187,8 @@ def reset_game args
   args.state.canvas_box_rect[:angle] = 0
   args.state.rune_pixels.each { |row| 8.times { row << nil_or_one.sample }}
   args.state.playing_tick = Kernel.tick_count
+  args.state.correct_squares = 0
+  args.state.total_possible_correct_squares = 0
 end
 
 def calc args
@@ -192,28 +198,7 @@ def calc args
   end
 
   if args.state.timer <= 0.0 && args.state.playing_tick
-    args.audio.delete(:drawing) if args.audio[:drawing]
-    args.audio[:bell] = { input: "sounds/bell.wav", gain: 0.2, pitch: 0.7}
-    args.state.game_status = :score
-    args.state.timer = args.state.game_duration
-    args.state.playing_tick = nil
-
-    total_possible_correct = 0
-    correct = 0
-    incorrect = 0
-    args.state.canvas_pixels.flatten.each do |pixel|
-      total_possible_correct += 1 if pixel[:needed]
-      correct += 1 if pixel[:needed] && pixel[:drawn]
-      incorrect += 1 if !pixel[:needed] && pixel[:drawn]
-    end
-
-    args.state.correct_squares = correct
-    args.state.mistaken_squares = incorrect
-    args.state.total_possible_correct_squares = total_possible_correct
-    puts args.state.total_possible_correct_squares
-    args.state.accuracy_percentage = ((correct / total_possible_correct) * 100).round(1)
-    args.state.mistake_percentage = ((incorrect / 256) * 100).round(1)
-    args.state.calculated_percentage = args.state.accuracy_percentage - args.state.mistake_percentage
+    calc_game_over args
   end
 
   if args.inputs.mouse.click && !args.state.playing_tick 
@@ -338,7 +323,34 @@ def calc args
 
   return unless pen[:drawing]
   
+  was_drawn = args.state.canvas_pixels[center_row][center_col][:drawn]
   args.state.canvas_pixels[center_row][center_col][:drawn] = true
+  args.state.correct_squares += 1 if args.state.canvas_pixels[center_row][center_col][:needed] && (args.state.canvas_pixels[center_row][center_col][:drawn] != was_drawn)
+  calc_game_over args if args.state.correct_squares >= args.state.total_possible_correct_squares
+end
+
+def calc_game_over args
+  args.audio.delete(:drawing) if args.audio[:drawing]
+  args.audio[:bell] = { input: "sounds/bell.wav", gain: 0.2, pitch: 0.7}
+  args.state.game_status = :score
+  args.state.timer = args.state.game_duration
+  args.state.playing_tick = nil
+
+  total_possible_correct = 0
+  correct = 0
+  incorrect = 0
+  args.state.canvas_pixels.flatten.each do |pixel|
+    total_possible_correct += 1 if pixel[:needed]
+    correct += 1 if pixel[:needed] && pixel[:drawn]
+    incorrect += 1 if !pixel[:needed] && pixel[:drawn]
+  end
+
+  args.state.correct_squares = correct
+  args.state.mistaken_squares = incorrect
+  args.state.total_possible_correct_squares = total_possible_correct
+  args.state.accuracy_percentage = ((correct / total_possible_correct) * 100).round(1)
+  args.state.mistake_percentage = ((incorrect / 256) * 100).round(1)
+  args.state.calculated_percentage = args.state.accuracy_percentage - args.state.mistake_percentage
 end
 
 def lerp_angle(current, target, ratio)
