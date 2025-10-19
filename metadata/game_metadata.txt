@@ -1,10 +1,10 @@
 # Remove the pound sign and leading space for the properties below before publishing your game.
-# devid=myname
-# devtitle=My Name
-# gameid=mygame
-# gametitle=My Game
-# version=0.1
-# icon=metadata/icon.png
+devid=zachariah-spencer
+devtitle=Zachariah Spencer
+gameid=glyphfall
+gametitle=Glyphfall
+version=0.0.1
+icon=metadata/fountain_pen.png
 
 # === Flags available at all licensing tiers ===
 
@@ -18,7 +18,7 @@
 # - 0: nearest neighbor, pixel perfect scaling (use this if your game uses pixel-art)
 # - 1: linear, less blocky visuals
 # - 2: anisotropic/best, higher computational overhead than linear, but provides the best visual quality
-# scale_quality=0
+scale_quality=0
 
 # === Directories to Ignore during packaging ===
 # A comma delimited list of directories that should be ignored during the
@@ -58,11 +58,11 @@
 # HD Mode: when enabled, will give you 720p, 1080p, 1440p, 4k, and 5k rendering options
 # Check out the following YouTube Video for a demo of DragonRuby's HD Capabilities
 # https://youtu.be/Rnc6z84zaa4
-# hd=false
+hd=true
 
 # === High DPI ===
 # Setting this property to true will enable High DPI rendering (try in combination with scale_quality to see what looks best)
-# highdpi=false
+highdpi=true
 
 # === Texture Atlases ===
 # See sample app for texture atlas usage: =./samples/07_advanced_rendering_hd/02_texture_atlases=
